@@ -4,8 +4,8 @@
 use tokio::runtime::Runtime;
 use tokio;
 use reqwest::{Client, Error};
-use serde::{Deserialize};
-use serde_json::Result;
+use serde::{Deserialize, Serialize};
+//use serde_json::Result;
 
 const BASE_URL: &str = "https://www.deckofcardsapi.com/api/deck/";
 const NEW_DECK_ENDPOINT: &str = "new/shuffle/?deck_count=1";
@@ -17,26 +17,31 @@ async fn get_request() -> Result<(), Error>  {
     Ok(())
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
+//#[serde(rename_all="camelCase")]
 struct Body {
     success: bool,
     deck_id: String,
     remaining: i16,
-    shufled: bool
+    shuffled: bool
 }
 
 #[tokio::main]
-async fn main() {
+async fn main()-> Result<(), Error> {
     let concat = BASE_URL.to_string() + NEW_DECK_ENDPOINT;
     println!(">{:?}", concat);
-    let response = reqwest::get(BASE_URL.to_string()+NEW_DECK_ENDPOINT)
+    //let response: Body = reqwest::get(BASE_URL.to_string()+NEW_DECK_ENDPOINT)
+    let response: Body = Client::new().get(BASE_URL.to_string()+NEW_DECK_ENDPOINT)
+        .send()
         .await
         .expect("failed to get payload")
-        .text()
+        .json()
+        //.text()
         //.json()::<Body>()
-        .await;
+        .await?;
     println!("Status: {:?}", response);
     println!("Hello, world!");
+    Ok(())
     //get_request();
     /*
     let rt = Runtime::new().unwrap();
