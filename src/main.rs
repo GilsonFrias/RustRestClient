@@ -19,12 +19,20 @@ async fn get_request() -> Result<(), Error>  {
 
 #[derive(Debug, Serialize, Deserialize)]
 //#[serde(rename_all="camelCase")]
-struct Body {
-    success: bool,
-    deck_id: String,
-    remaining: i16,
-    shuffled: bool
+pub struct Body {
+    pub success: bool,
+    pub deck_id: String,
+    pub remaining: i16,
+    pub shuffled: bool
 }
+/*
+static new_body = Body {
+    success: true,
+    deck_id: "".to_string(),
+    remaining: 0,
+    shuffled: true
+};
+*/
 
 #[tokio::main]
 async fn main()-> Result<(), Error> {
