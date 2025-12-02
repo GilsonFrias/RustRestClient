@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 //use hyper::{Client, Body, Request};
 //use hyper::client::HttpConnector;
 //use hyper::body::HttpBody;
@@ -5,6 +7,7 @@ use tokio::runtime::Runtime;
 use tokio;
 use reqwest::{Client, Error};
 use serde::{Deserialize, Serialize};
+use serde_with::{serde_as, KeyValueMap};
 use serde_json::to_string; //Result;
 
 const BASE_URL: &str = "https://www.deckofcardsapi.com/api/deck/";
@@ -27,17 +30,26 @@ struct Body {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+struct Images {
+    svg: String,
+    png: String
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 struct Card {
-    ctype: String,
-    number: i8,
-    color: String
+    code: String,
+    image: String,
+    //#[serde_as(as "KeyValueMap<Images>")]
+    images: HashMap<String, Images>,
+    value: String,
+    suit: String
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 struct CardResponse {
     success: bool,
     deck_id: String,
-    cards: [Card; 0],
+    cards: [Card; 1],
     remaining: i16
 }
 
@@ -47,15 +59,18 @@ async fn draw_card(deck_id: String) -> Result<(), Error> {
         //A deck_id was not provided, get a new deck
         let request_url = BASE_URL.to_string()+"new"+DRAW_CARD_ENDPOINT; 
         println!("[INFO] Requesting new deck of cards");
-        let response: CardResponse = Client::new().get(request_url)
+        let client = Client::new();
+        let response = client.get(request_url)
         .send()
-        .await
-        .expect("[ERROR] Failed to get payload")
-        .json()
+        .await?;
+        //let body= response.json().await?;
+        println!("[INFO] Client response: {:?}", response.text().await?);
+        //.expect("[ERROR] Failed to get payload")
         //.text()
         //.json()::<Body>()
-        .await?;
-        println!("[INFO] Response: {:?}", response);
+        //.await?;
+        //intln!("[INFO] Response body: {:?}", body);
+        //println!("[INFO] Body: {:?}", response.text());
     }
     else{
         println!("The string is not empty");
