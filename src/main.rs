@@ -5,7 +5,7 @@ use std::collections::HashMap;
 //use hyper::body::HttpBody;
 use tokio::runtime::Runtime;
 use tokio;
-use reqwest::{Client, Error};
+use reqwest::{Client, Error, StatusCode};
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, KeyValueMap};
 use serde_json::to_string; //Result;
@@ -39,8 +39,8 @@ struct Images {
 struct Card {
     code: String,
     image: String,
-    //#[serde_as(as "KeyValueMap<Images>")]
-    images: HashMap<String, Images>,
+   // #[serde_as(as "KeyValueMap<Images>")]
+    images: HashMap<String, String>,
     value: String,
     suit: String
 }
@@ -49,7 +49,7 @@ struct Card {
 struct CardResponse {
     success: bool,
     deck_id: String,
-    cards: String,//[Card; 1],
+    cards: [Card; 1],
     remaining: i16
 }
 
@@ -62,18 +62,35 @@ async fn draw_card(deck_id: String) -> Result<(), Error> {
         let client = Client::new();
         let response = client.get(request_url)
         .send()
-        .await?
-        .text()
         .await?;
+        //.text()
+        //.await?;
+
+        //if let Err(e) = response {
+        //    println!("Error {:}, e");
+        //}
+        //
+        println!("[INFO] response status: {:?} ", &response.status());
+
+        match response.status() {
+            StatusCode::OK => {
+                println!("[INFO] status code 200");
+            },
+            _ => {
+                println!("[ERROR] Invalid statusCode");
+            }
+        }
+
+        let response_txt = response.text().await?;
         //let body: Card = response.json().await?;
-        println!("[INFO] Client response: {:?}", &response);
+        println!("[INFO] Client response: {:?}", &response_txt);
         //.expect("[ERROR] Failed to get payload")
         //.text()
-        let body: CardResponse  = serde_json::from_str(response.as_str()).unwrap(); 
+        let body: CardResponse  = serde_json::from_str(response_txt.as_str()).unwrap(); 
         //.json()::<Body>()
         //.await?;
         //intln!("[INFO] Response body: {:?}", body);
-        //println!("[INFO] Body: {:?}", body);
+        println!("[INFO] Body: {:?}", body.remaining);
     }
     else{
         println!("The string is not empty");
