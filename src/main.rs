@@ -49,7 +49,7 @@ struct Card {
 struct CardResponse {
     success: bool,
     deck_id: String,
-    cards: [Card; 1],
+    cards: String,//[Card; 1],
     remaining: i16
 }
 
@@ -62,15 +62,18 @@ async fn draw_card(deck_id: String) -> Result<(), Error> {
         let client = Client::new();
         let response = client.get(request_url)
         .send()
+        .await?
+        .text()
         .await?;
-        //let body= response.json().await?;
-        println!("[INFO] Client response: {:?}", response.text().await?);
+        //let body: Card = response.json().await?;
+        println!("[INFO] Client response: {:?}", &response);
         //.expect("[ERROR] Failed to get payload")
         //.text()
+        let body: CardResponse  = serde_json::from_str(response.as_str()).unwrap(); 
         //.json()::<Body>()
         //.await?;
         //intln!("[INFO] Response body: {:?}", body);
-        //println!("[INFO] Body: {:?}", response.text());
+        //println!("[INFO] Body: {:?}", body);
     }
     else{
         println!("The string is not empty");
