@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, KeyValueMap};
 use serde_json::to_string; //Result;
 
-const BASE_URL: &str = "https://www.deckofcardsapi.com/api/deck/";
+const BASE_URL: &str = "https://www.deckofcardsapi.com/aapi/deck/";
 const NEW_DECK_ENDPOINT: &str = "new/shuffle/?deck_count=1";
 const DRAW_CARD_ENDPOINT: &str = "/draw/?count=1";
 
@@ -71,11 +71,14 @@ async fn draw_card(deck_id: String) -> Result<(), Error> {
         //}
         //
         println!("[INFO] response status: {:?} ", &response.status());
-
+        let status = &response.status();
         match response.status() {
             StatusCode::OK => {
-                println!("[INFO] status code 200");
+                println!("[INFO] status code OK: {:?}", status);
             },
+            StatusCode::NOT_FOUND => {
+                println!("[ERROR] url not found: {:?}", status);
+            }
             _ => {
                 println!("[ERROR] Invalid statusCode");
             }
