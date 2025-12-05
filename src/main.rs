@@ -1,50 +1,14 @@
-use std::collections::HashMap;
-
-//use hyper::{Client, Body, Request};
-//use hyper::client::HttpConnector;
-//use hyper::body::HttpBody;
-use tokio::runtime::Runtime;
+use std::{collections::HashMap, u8};
 use tokio;
-use reqwest::{Client, Error};
-use serde::{Deserialize, Serialize};
-use serde_with::{serde_as, KeyValueMap};
-use serde_json::to_string; //Result;
+use reqwest::{Client, Error, StatusCode};
+use serde::{Deserialize, Serialize}; 
+use log::{info, error, debug};
 
+//URL constants defining the request paths
 const BASE_URL: &str = "https://www.deckofcardsapi.com/api/deck/";
-const NEW_DECK_ENDPOINT: &str = "new/shuffle/?deck_count=1";
 const DRAW_CARD_ENDPOINT: &str = "/draw/?count=1";
 
-async fn get_request() -> Result<(), Error>  {
-    let rest_client = reqwest::Client::new();
-    let response = rest_client.get(BASE_URL).send().await?;
-    println!("Status: {:?}", response.text().await?);
-    Ok(())
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct Body {
-    pub success: bool,
-    pub deck_id: String,
-    pub remaining: i16,
-    pub shuffled: bool
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct Images {
-    svg: String,
-    png: String
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct Card {
-    code: String,
-    image: String,
-    //#[serde_as(as "KeyValueMap<Images>")]
-    images: HashMap<String, Images>,
-    value: String,
-    suit: String
-}
-
+//Struct to format single card entity from /draw response 
 #[derive(Debug, Serialize, Deserialize)]
 struct CardResponse {
     success: bool,
@@ -53,75 +17,86 @@ struct CardResponse {
     remaining: i16
 }
 
-async fn draw_card(deck_id: String) -> Result<(), Error> {
-    println!("On drawCard fn with deck_id: {:?}", deck_id.is_empty());
-    if deck_id.is_empty() {
-        //A deck_id was not provided, get a new deck
-        let request_url = BASE_URL.to_string()+"new"+DRAW_CARD_ENDPOINT; 
-        println!("[INFO] Requesting new deck of cards");
-        let client = Client::new();
-        let response = client.get(request_url)
-        .send()
-        .await?;
-        //let body= response.json().await?;
-        println!("[INFO] Client response: {:?}", response.text().await?);
-        //.expect("[ERROR] Failed to get payload")
-        //.text()
-        //.json()::<Body>()
-        //.await?;
-        //intln!("[INFO] Response body: {:?}", body);
-        //println!("[INFO] Body: {:?}", response.text());
-    }
-    else{
-        println!("The string is not empty");
-    }
-    println!("Finish draw_card");
-    Ok(())
-}
-
-fn main() {
-    let rt = tokio::runtime::Runtime::new().unwrap();
-    let future = draw_card("".to_string());//response.deck_id);
-    let _ = rt.block_on(future);
-    println!("---");
+//Card node representation struct
+#[derive(Debug, Serialize, Deserialize)]
+struct Card {
+    code: String,
+    image: String,
+    images: HashMap<String, String>,
+    value: String,
+    suit: String
 }
 
 /*
-#[tokio::main]
-async fn main()-> Result<(), Error> {
-    let newCard: Card = Card{ctype: "Hearts".to_string(), number: 11, color: "Red".to_string()};
-    let newCardStr = to_string(&newCard);
-    if newCardStr.is_ok() {
-        println!("Newlly created card: {:?}", newCardStr.ok().unwrap());
-    }
-    else {
-        println!("{:?}", newCardStr);
-    }
-    let concat = BASE_URL.to_string() + NEW_DECK_ENDPOINT;
-    println!(">{:?}", concat);
-    //let response: Body = reqwest::get(BASE_URL.to_string()+NEW_DECK_ENDPOINT)
-    let response: Body = Client::new().get(BASE_URL.to_string()+NEW_DECK_ENDPOINT)
-        .send()
-        .await
-        .expect("failed to get payload")
-        .json()
-        //.text()
-        //.json()::<Body>()
-        .await?;
-    println!("Status: {:?}", response);
-    println!("---");
-    let rt = tokio::runtime::Runtime::new().unwrap();
-    let future = draw_card("".to_string());//response.deck_id);
-    let _ = rt.block_on(future);
-    println!("---");
-    //get_request();
-    Ok(())
-    //get_request();
-    /*
-    let rt = Runtime::new().unwrap();
-    rt.block_on(async {
-        let client = Client::new();
-    });
-    */
-}
+Function to request a single card draw from remote /draw entity.
+input args: deck_id the deck from which a new card will be retrieved
+output args: CardResponse struct, Error entity
+
+TODO: Enable 'count' param as input arg to request more than 1 card at a time
 */
+async fn draw_card(deck_id: String) -> Result<HashMap<String, String>, Error> {
+    //Request a new deck if no deck_id was provided
+    let mut final_result = HashMap::new();
+    if deck_id.is_empty() {
+        let request_url = BASE_URL.to_string()+"new"+DRAW_CARD_ENDPOINT; 
+        info!("Requesting new deck of cards ({request_url})");
+        let client = Client::new();
+        let response = client.get(request_url)
+        .send() 
+        .await?;
+        let status = &response.status();
+        info!("Processing response with status: {status}");
+        match response.status() {
+            StatusCode::OK => {
+                info!("Handling success response, serializing into JSON");
+                let response_txt = response.text().await?;
+                //TODO: implement text extraction error handling
+                debug!("Deserialized response: {response_txt}");
+                let body: Result<CardResponse, serde_json::Error>  = serde_json::from_str(response_txt.as_str());//.unwrap();
+                match body {
+                    Ok(data) => {
+                        debug!("Successful JSON serialization: {:?}", data);
+                        debug!("Suit: {:?}", data.cards[0].suit);
+                        //Construct return structure with card info 
+                        /* 
+                        let final_result = HashMap::from([
+                            ("Suit".to_string(), &data.cards[0].suit),
+                            ("Value".to_string(), &data.cards[0].value)
+                        ]);
+                        */
+                        final_result.insert("Suit".to_string(), data.cards[0].suit.clone());
+                        final_result.insert("Value".to_string(), data.cards[0].value.clone());
+                        debug!("Return Hashmap: {:?}", final_result);
+                    },
+                    Err(e) => {
+                        error!("Error on JSON serialization: {e}");
+                    }
+                }
+            },
+            StatusCode::NOT_FOUND => {
+                error!("URL not found error");
+            },
+            status if status.is_client_error() => {
+                println!("[ERROR] client error: {:?}", status);
+            },
+            status if status.is_server_error() => {
+                println!("[ERROR] server side error: {:?}", status);
+            }            _ => {
+                println!("[ERROR] Invalid statusCode");
+            }
+        }
+    }
+    else{
+        //TODO: implement draw_card for a given deck_id
+        println!("The string is not empty");
+    }
+    Ok(final_result)
+}
+
+fn main() {
+    env_logger::init();
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let future = draw_card("".to_string());
+    let final_result = rt.block_on(future);
+    info!("Final Result: {:?}", final_result);
+}
