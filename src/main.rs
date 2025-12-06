@@ -3,6 +3,7 @@ use tokio;
 use reqwest::{Client, Error, StatusCode};
 use serde::{Deserialize, Serialize}; 
 use log::{info, error, debug};
+use clap::{Parser};
 
 //URL constants defining the request paths
 const BASE_URL: &str = "https://www.deckofcardsapi.com/api/deck/";
@@ -25,6 +26,11 @@ struct Card {
     images: HashMap<String, String>,
     value: String,
     suit: String
+}
+
+#[derive(Parser)]
+struct Cli {
+    n: Option<u8>
 }
 
 /*
@@ -57,13 +63,6 @@ async fn draw_card(deck_id: String) -> Result<HashMap<String, String>, Error> {
                     Ok(data) => {
                         debug!("Successful JSON serialization: {:?}", data);
                         debug!("Suit: {:?}", data.cards[0].suit);
-                        //Construct return structure with card info 
-                        /* 
-                        let final_result = HashMap::from([
-                            ("Suit".to_string(), &data.cards[0].suit),
-                            ("Value".to_string(), &data.cards[0].value)
-                        ]);
-                        */
                         final_result.insert("Suit".to_string(), data.cards[0].suit.clone());
                         final_result.insert("Value".to_string(), data.cards[0].value.clone());
                         debug!("Return Hashmap: {:?}", final_result);
@@ -96,7 +95,19 @@ async fn draw_card(deck_id: String) -> Result<HashMap<String, String>, Error> {
 fn main() {
     env_logger::init();
     let rt = tokio::runtime::Runtime::new().unwrap();
-    let future = draw_card("".to_string());
-    let final_result = rt.block_on(future);
-    info!("Final Result: {:?}", final_result);
+    let args = Cli::parse();
+    println!("♥️");
+    let n_cards = args.n;
+    if let Some(n_cards) = n_cards {
+       // println!("n is: {}", n);
+        for i in 1..=n_cards {
+            info!("Requested to draw {} cards", n_cards);
+            let future = draw_card("".to_string());
+            let final_result = rt.block_on(future);
+            info!("Card {} out of {} successfully obtained", i, n_cards);
+        }
+    }else {
+        info!("N arg not given, drawing only one card");
+    };
+    //println!("pattern: {:?}, path: {:?}", pattern, path);
 }
