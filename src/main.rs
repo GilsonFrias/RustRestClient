@@ -1,4 +1,4 @@
-use std::{collections::HashMap, u8};
+use std::{collections::HashMap};
 use tokio;
 use reqwest::{Client, Error, StatusCode};
 use serde::{Deserialize, Serialize}; 
@@ -30,7 +30,8 @@ struct Card {
 
 #[derive(Parser)]
 struct Cli {
-    n: Option<u8>
+    //TODO: create --help arg
+    n: Option<u16>
 }
 
 /*
@@ -76,18 +77,18 @@ async fn draw_card(deck_id: String) -> Result<HashMap<String, String>, Error> {
                 error!("URL not found error");
             },
             status if status.is_client_error() => {
-                println!("[ERROR] client error: {:?}", status);
+                error!("[ERROR] client error: {:?}", status);
             },
             status if status.is_server_error() => {
-                println!("[ERROR] server side error: {:?}", status);
+                error!("[ERROR] server side error: {:?}", status);
             }            _ => {
-                println!("[ERROR] Invalid statusCode");
+                error!("[ERROR] Invalid statusCode");
             }
         }
     }
     else{
         //TODO: implement draw_card for a given deck_id
-        println!("The string is not empty");
+        info!("The string is not empty");
     }
     Ok(final_result)
 }
@@ -98,16 +99,22 @@ fn main() {
     let args = Cli::parse();
     println!("♥️");
     let n_cards = args.n;
+    let mut n: u16 = 1;
     if let Some(n_cards) = n_cards {
-       // println!("n is: {}", n);
-        for i in 1..=n_cards {
-            info!("Requested to draw {} cards", n_cards);
-            let future = draw_card("".to_string());
-            let final_result = rt.block_on(future);
-            info!("Card {} out of {} successfully obtained", i, n_cards);
-        }
+        n = n_cards;
+        info!("N arg not given, drawing only one card");
+    }
+    println!("n is: {}", n);
+    for i in 1..=n {
+        info!("Requested to draw {} cards", n);
+        let future = draw_card("".to_string());
+        let final_result = rt.block_on(future);
+        info!("Card {} out of {} successfully obtained", i, n);
+    }
+    /*
     }else {
         info!("N arg not given, drawing only one card");
     };
+    */
     //println!("pattern: {:?}, path: {:?}", pattern, path);
 }
