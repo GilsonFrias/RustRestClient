@@ -29,6 +29,8 @@ struct Card {
     suit: String
 }
 
+//HashMap holdin the string-emoji equivalences
+//TODO: Include emojis for cards above 10 (Queen, etc.)
 lazy_static! {
     static ref CARD_ICONS: HashMap<String, String> = {
         let mut icons = HashMap::new();
@@ -93,7 +95,7 @@ async fn draw_card(deck_id: String) -> Result<HashMap<String, String>, Box<dyn s
             },
             status if status.is_client_error() => {
                 error!("[ERROR] client error: {:?}", status);
-                Err("Client error (40x)".into())
+                Err("Client error: (40x)".into())
             },
             status if status.is_server_error() => {
                 error!("[ERROR] server side error: {:?}", status);
@@ -121,37 +123,30 @@ fn main() {
         n = n_cards;
         info!("N arg not given, drawing only one card");
     }
-    println!("n is: {}", n);
     for i in 1..=n {
         info!("Requested to draw {} cards", n);
         let future = draw_card("".to_string());
         let final_result = rt.block_on(future);
         match final_result {
-            Ok(final_result) => println!("Ok {:?}", final_result),
-            Err(error) => println!("Error {}", error)
-
+            Ok(final_result) => {
+                debug!("Ok result evaluated for draw_card {:?}", final_result);
+                let  suit = final_result.get("Suit");
+                let value = final_result.get("Value");
+                if let Some(suit) = suit { 
+                    if CARD_ICONS.contains_key(suit) {
+                        let icon = CARD_ICONS.get(suit);
+                        if let Some(value) = value {
+                            println!("Your card number {:?} is {:?} of {:?} ({:?}{:?}) !", i, value, suit, value, icon);
+                        }
+                    }else{
+                        error!("Card suit not defined in CARD_ICONS: {:?}", suit);
+                    }
+                }
+            },
+            Err(error) => {
+                println!("Error {}", error);
+            }
         }
         info!("Card {} out of {} successfully obtained", i, n);
-        /* 
-        if let result = Some(final_result) {
-            println!("Good result");
-            
-            if CARD_ICONS.contains_key(&result["Suit"]) {
-                info!(">>>Result: {:?}", result);
-            }
-        }else {
-            println!("Bad result");
-        }
-        */
-        
-        //println!("{}", CARD_ICONS[final_result["Value"]]);
     }
-     
-    
-    /*
-    }else {
-        info!("N arg not given, drawing only one card");
-    };
-    */
-    //println!("pattern: {:?}, path: {:?}", pattern, path);
 }
