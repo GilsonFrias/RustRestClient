@@ -1,9 +1,10 @@
 use std::{collections::HashMap};
 use tokio;
-use reqwest::{Client, Error, StatusCode};
+use reqwest::{Client, StatusCode};
 use serde::{Deserialize, Serialize}; 
 use log::{info, error, debug};
 use clap::{Parser};
+use lazy_static::lazy_static;
 
 //URL constants defining the request paths
 const BASE_URL: &str = "https://www.deckofcardsapi.com/api/deck/";
@@ -28,6 +29,17 @@ struct Card {
     suit: String
 }
 
+lazy_static! {
+    static ref CARD_ICONS: HashMap<String, String> = {
+        let mut icons = HashMap::new();
+        icons.insert("HEARTS".to_string(), "♥️".to_string());
+        icons.insert("SPADES".to_string(), "♠️".to_string());
+        icons.insert("CLUBS".to_string(), "♣️".to_string());
+        icons.insert("DIAMONDS".to_string(), "♦️".to_string());
+        icons
+    };
+}
+
 #[derive(Parser)]
 struct Cli {
     //TODO: create --help arg
@@ -41,7 +53,7 @@ output args: CardResponse struct, Error entity
 
 TODO: Enable 'count' param as input arg to request more than 1 card at a time
 */
-async fn draw_card(deck_id: String) -> Result<HashMap<String, String>, Error> {
+async fn draw_card(deck_id: String) -> Result<HashMap<String, String>, Box<dyn std::error::Error> > {
     //Request a new deck if no deck_id was provided
     let mut final_result = HashMap::new();
     if deck_id.is_empty() {
@@ -67,37 +79,42 @@ async fn draw_card(deck_id: String) -> Result<HashMap<String, String>, Error> {
                         final_result.insert("Suit".to_string(), data.cards[0].suit.clone());
                         final_result.insert("Value".to_string(), data.cards[0].value.clone());
                         debug!("Return Hashmap: {:?}", final_result);
+                        Ok(final_result)
                     },
                     Err(e) => {
                         error!("Error on JSON serialization: {e}");
+                        Err("Resource not found (404)".into())
                     }
                 }
             },
             StatusCode::NOT_FOUND => {
                 error!("URL not found error");
+                Err("Resource not found (404)".into())
             },
             status if status.is_client_error() => {
                 error!("[ERROR] client error: {:?}", status);
+                Err("Client error (40x)".into())
             },
             status if status.is_server_error() => {
                 error!("[ERROR] server side error: {:?}", status);
-            }            _ => {
+                Err("Server side error (50x)".into())
+            }, _ => {
                 error!("[ERROR] Invalid statusCode");
+                Err("Unkown status code received".into())
             }
         }
     }
     else{
         //TODO: implement draw_card for a given deck_id
         info!("The string is not empty");
+        Ok(final_result)
     }
-    Ok(final_result)
 }
 
 fn main() {
     env_logger::init();
     let rt = tokio::runtime::Runtime::new().unwrap();
     let args = Cli::parse();
-    println!("♥️");
     let n_cards = args.n;
     let mut n: u16 = 1;
     if let Some(n_cards) = n_cards {
@@ -109,8 +126,28 @@ fn main() {
         info!("Requested to draw {} cards", n);
         let future = draw_card("".to_string());
         let final_result = rt.block_on(future);
+        match final_result {
+            Ok(final_result) => println!("Ok {:?}", final_result),
+            Err(error) => println!("Error {}", error)
+
+        }
         info!("Card {} out of {} successfully obtained", i, n);
+        /* 
+        if let result = Some(final_result) {
+            println!("Good result");
+            
+            if CARD_ICONS.contains_key(&result["Suit"]) {
+                info!(">>>Result: {:?}", result);
+            }
+        }else {
+            println!("Bad result");
+        }
+        */
+        
+        //println!("{}", CARD_ICONS[final_result["Value"]]);
     }
+     
+    
     /*
     }else {
         info!("N arg not given, drawing only one card");
