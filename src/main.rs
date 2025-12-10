@@ -6,6 +6,8 @@ use log::{info, error, debug};
 use clap::{Parser};
 use lazy_static::lazy_static;
 
+//TODO: Add unit tests for draw_card function
+
 //URL constants defining the request paths
 const BASE_URL: &str = "https://www.deckofcardsapi.com/api/deck/";
 const DRAW_CARD_ENDPOINT: &str = "/draw/?count=1";
@@ -114,6 +116,29 @@ async fn draw_card(deck_id: String) -> Result<HashMap<String, String>, Box<dyn s
 }
 
 fn main() {
+    /*TODO: As per copilot suggestion, create unique reqwest client and
+    process requests concurrently
+
+    env_logger::init();
+    let args = Cli::parse();
+    let n: u16 = args.n.unwrap_or(1);
+    info!("Requested to draw {} cards", n);
+    
+    let client = Client::new(); // Create once, reuse
+    
+    // Create concurrent futures instead of sequential
+    let futures: Vec<_> = (1..=n)
+        .map(|_| draw_card("".to_string(), &client))
+        .collect();
+    
+    // Execute all requests concurrently
+    let results = futures::future::join_all(futures).await;
+    
+    for (i, result) in results.iter().enumerate() {
+        // Process results
+    }
+
+    */
     env_logger::init();
     let rt = tokio::runtime::Runtime::new().unwrap();
     let args = Cli::parse();
